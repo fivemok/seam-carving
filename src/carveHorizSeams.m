@@ -14,5 +14,5 @@ function carved = carveHorizSeams(img, n)
     for seam=1:n
         horiz = accMinHorizPathMap(carved); % update accumulated energy map
         h = findHorizSeam(horiz); % find seam
-        [carved, horiz] = horizSeamCarve(carved, horiz, h); % cut seams from img
+        carved = horizSeamCarve(carved, h); % cut seams from img
     end;

@@ -14,5 +14,5 @@ function carved = carveVertSeams(img, n)
     for seam=1:n
         vert = accMinVertPathMap(carved); % update accumulated energy map
         v = findVertSeam(vert); % find seam
-        carved = vertSeamCarve(carved, vert, v); % cut seam from img
+        carved = vertSeamCarve(carved, v); % cut seam from img
     end;
