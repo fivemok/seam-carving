@@ -4,6 +4,8 @@
 
 ### Input
 ![1](images/castle.jpg)
+
+Note: this image has been scaled to fit by the markdown file
 ### Output (700 vertical seams removed)
 ![2](output/castle700v.jpg)
 
