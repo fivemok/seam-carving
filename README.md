@@ -14,6 +14,11 @@ The algorithm is as follows:
 ## Some results
 
 ### Input
+![1](images/vladimir.jpg)
+### Output (200 vertical seams removed)
+![2](output/vladimir200v.jpg)
+
+### Input
 ![1](images/castle.jpg)
 
 Note: this image has been scaled to fit by the markdown file
@@ -29,11 +34,6 @@ Note: this image has been scaled to fit by the markdown file
 ![1](images/river.jpg)
 ### Output (300 vertical seams removed)
 ![2](output/river300v.jpg)
-
-### Input
-![1](images/vladimir.jpg)
-### Output (200 vertical seams removed)
-![2](output/vladimir200v.jpg)
 
 ### Input
 ![1](images/chalet.jpg)
