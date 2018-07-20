@@ -138,7 +138,7 @@ void findSeam(const cv::cuda::PtrStepSz<T> src, int *seam, Orientation o)
 
 	for (int rc = lastRc - 1; rc >= 0; rc--) {
 		int diagOneIdx = MAX(minRc - 1, 0);
-		int diagTwoIdx = MIN(minRc + 1, lastRc);
+		int diagTwoIdx = MIN(minRc + 1, dim - 1);
 		T diagOne, diagTwo, adjacent;
 		if (isHorizontal) {
 			diagOne = src(diagOneIdx, rc);
