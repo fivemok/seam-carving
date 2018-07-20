@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/cuda.hpp>
 
+//#define DEBUG_SEAM
 #define TPB 256
 
 enum Orientation { HORIZONTAL, VERTICAL };
@@ -53,55 +54,36 @@ void computeEnergy(const cv::cuda::PtrStepSz<T> gradY,
 }
 
 template <typename T> __global__
-void computeEnergyMapH(const cv::cuda::PtrStepSz<T> src,
-	cv::cuda::PtrStepSz<T> dst, int col)
+void computeEnergyMap(const cv::cuda::PtrStepSz<T> src,
+	cv::cuda::PtrStepSz<T> dst, int rc, Orientation o)
 {
 	int tid = blockDim.x * blockIdx.x + threadIdx.x;
+	bool isHorizontal = (o == HORIZONTAL);
+	int tLimit = isHorizontal ? dst.rows : dst.cols;
 
-	if (tid < src.rows) {
-		if (col == 0) {
-			dst(tid, col) = src(tid, col);
-		}
-		else {
-			if (tid == 0) {
-				dst(tid, col) = src(tid, col)
-					+ MIN(dst(tid, col - 1), dst(tid + 1, col - 1));
-			}
-			else if (tid == src.rows - 1) {
-				dst(tid, col) = src(tid, col)
-					+ MIN(dst(tid, col - 1), dst(tid - 1, col - 1));
+	if (tid < tLimit) {
+		if (rc == 0) {
+			if (isHorizontal) {
+				dst(tid, rc) = src(tid, rc);
 			}
 			else {
-				dst(tid, col) = src(tid, col)
-					+ MIN(dst(tid, col - 1), MIN(dst(tid - 1, col - 1), dst(tid + 1, col - 1)));
+				dst(rc, tid) = src(rc, tid);
 			}
-		}
-	}
-
-}
-
-template <typename T> __global__
-void computeEnergyMapV(const cv::cuda::PtrStepSz<T> src,
-	cv::cuda::PtrStepSz<T> dst, int row)
-{
-	int tid = blockDim.x * blockIdx.x + threadIdx.x;
-
-	if (tid < src.cols) {
-		if (row == 0) {
-			dst(row, tid) = src(row, tid);
 		}
 		else {
-			if (tid == 0) {
-				dst(row, tid) = src(row, tid)
-					+ MIN(dst(row - 1, tid), dst(row - 1, tid + 1));
-			}
-			else if (tid == src.cols - 1) {
-				dst(row, tid) = src(row, tid)
-					+ MIN(dst(row - 1, tid), dst(row - 1, tid - 1));
+			int diagOneIdx = MAX(tid - 1, 0);
+			int diagTwoIdx = MIN(tid + 1, tLimit - 1);
+			if (isHorizontal) {
+				T diagOne = dst(diagOneIdx, rc - 1);
+				T diagTwo = dst(diagTwoIdx, rc - 1);
+				T adjacent = dst(tid, rc - 1);
+				dst(tid, rc) = src(tid, rc) + MIN(adjacent, MIN(diagOne, diagTwo));
 			}
 			else {
-				dst(row, tid) = src(row, tid)
-					+ MIN(dst(row - 1, tid), MIN(dst(row - 1, tid - 1), dst(row - 1, tid + 1)));
+				T diagOne = dst(rc - 1, diagOneIdx);
+				T diagTwo = dst(rc - 1, diagTwoIdx);
+				T adjacent = dst(rc - 1, tid);
+				dst(rc, tid) = src(rc, tid) + MIN(adjacent, MIN(diagOne, diagTwo));
 			}
 		}
 	}

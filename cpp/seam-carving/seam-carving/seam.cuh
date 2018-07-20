@@ -29,20 +29,16 @@ static inline void computeEnergy(cv::Ptr<cv::cuda::Filter> gauss,
 }
 
 template <typename T>
-static inline void computeEnergyMap(const cv::cuda::PtrStepSz<T> d_grad,
-	cv::cuda::PtrStepSz<T> d_energy, bool isHorizontal)
+static inline void computeEnergyMap(const cv::cuda::PtrStepSz<T> d_energy,
+	cv::cuda::PtrStepSz<T> d_energyMap, Orientation o)
 {
-	int dim = isHorizontal ? d_grad.cols : d_grad.rows;
-	int numThreads = isHorizontal ? d_grad.rows : d_grad.cols;
+	bool isHorizontal = (o == HORIZONTAL);
+	int dim = isHorizontal ? d_energy.cols : d_energy.rows;
+	int numThreads = isHorizontal ? d_energy.rows : d_energy.cols;
 	int blocks = ceil(((double)numThreads)/TPB);
 
 	for (int i = 0; i < dim; i++) {
-		if (isHorizontal) {
-			computeEnergyMapH<T><<<blocks,TPB>>>(d_grad, d_energy, i);
-		}
-		else {
-			computeEnergyMapV<T><<<blocks,TPB>>>(d_grad, d_energy, i);
-		}
+		computeEnergyMap<T><<<blocks,TPB>>>(d_energy, d_energyMap, i, o);
 	}
 }
 
@@ -78,7 +74,7 @@ cv::Mat cutSeams(cv::Mat h_image, int numSeams, Orientation o)
 		cv::cuda::PtrStepSz<T> d_energyPtr(d_energy.rows, d_energy.cols, d_energy.ptr<T>(), d_energy.step);
 		cv::cuda::PtrStepSz<T> d_energyMapPtr(d_energy.rows, d_energy.cols, d_energyMap.ptr<T>(), d_energy.step);
 
-		computeEnergyMap<T>(d_energyPtr, d_energyMapPtr, isHorizontal);
+		computeEnergyMap<T>(d_energyPtr, d_energyMapPtr, o);
 		findSeam<<<1,1>>>(d_energyMapPtr, seam, o);
 		newDim--;
 
