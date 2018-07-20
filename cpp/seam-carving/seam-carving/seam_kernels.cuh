@@ -108,82 +108,60 @@ void computeEnergyMapV(const cv::cuda::PtrStepSz<T> src,
 }
 
 template <typename T> __global__
-void findSeamH(const cv::cuda::PtrStepSz<T> src, int *seam)
+void findSeam(const cv::cuda::PtrStepSz<T> src, int *seam, Orientation o)
 {
+	bool isHorizontal = (o == HORIZONTAL);
 	T currMin = INFINITY;
-	int minRow = 0;
-	int lastCol = src.cols - 1;
-	for (int row = 0; row < src.rows; row++) {
-		T currEnergy = src(row, lastCol);
+	int minRc = 0;
+	int lastRc = isHorizontal ? src.cols - 1 : src.rows - 1;
+	int dim = isHorizontal ? src.rows : src.cols;
+	for (int rc = 0; rc < dim; rc++) {
+		T currEnergy;
+		if (isHorizontal) {
+			currEnergy = src(rc, lastRc);
+		}
+		else {
+			currEnergy = src(lastRc, rc);
+		}
+
 		if (currEnergy < currMin) {
 			currMin = currEnergy;
-			minRow = row;
+			minRc = rc;
 		}
 	}
 
-	seam[src.cols - 1] = minRow;
+	seam[lastRc] = minRc;
 
 #ifdef DEBUG_SEAM
-	printf("MIN ROW: %d @ %f\n", minRow, currMin);
+	printf("MIN RC: %d @ %f\n", minRc, currMin);
 #endif
 
-	for (int col = src.cols - 2; col >= 0; col--) {
-		int upperLeftRowIdx = MAX(minRow - 1, 0);
-		int lowerLeftRowIdx = MIN(minRow + 1, src.rows - 1);
-		T  upperLeft = src(upperLeftRowIdx, col);
-		T		left = src(minRow, col);
-		T  lowerLeft = src(lowerLeftRowIdx, col);
-		T	  minVal = MIN(left, MIN(upperLeft, lowerLeft));
-		if (minVal != left) {
-			if (minVal == upperLeft) {
-				minRow = upperLeftRowIdx;
+	for (int rc = lastRc - 1; rc >= 0; rc--) {
+		int diagOneIdx = MAX(minRc - 1, 0);
+		int diagTwoIdx = MIN(minRc + 1, lastRc);
+		T diagOne, diagTwo, adjacent;
+		if (isHorizontal) {
+			diagOne = src(diagOneIdx, rc);
+			diagTwo = src(diagTwoIdx, rc);
+			adjacent = src(minRc, rc);
+		}
+		else {
+			diagOne = src(rc, diagOneIdx);
+			diagTwo = src(rc, diagTwoIdx);
+			adjacent = src(rc, minRc);
+		}
+
+		T minVal = MIN(adjacent, MIN(diagOne, diagTwo));
+		if (minVal != adjacent) {
+			if (minVal == diagOne) {
+				minRc = diagOneIdx;
 			}
 			else {
-				minRow = lowerLeftRowIdx;
+				minRc = diagTwoIdx;
 			}
 		}
 
-		seam[col] = minRow;
+		seam[rc] = minRc;
 	}
 
-}
-
-template <typename T> __global__
-void findSeamV(const cv::cuda::PtrStepSz<T> src, int *seam)
-{
-	T currMin = INFINITY;
-	int minCol = 0;
-	int lastRow = src.rows - 1;
-	for (int col = 0; col < src.cols; col++) {
-		T currEnergy = src(lastRow, col);
-		if (currEnergy < currMin) {
-			currMin = currEnergy;
-			minCol = col;
-		}
-	}
-
-	seam[src.rows - 1] = minCol;
-
-#ifdef DEBUG_SEAM
-	printf("MIN COL %d @ %f\n", minCol, currMin);
-#endif
-
-	for (int row = src.rows - 2; row >= 0; row--) {
-		int  upperLeftColIdx = MAX(minCol - 1, 0);
-		int upperRightColIdx = MIN(minCol + 1, src.cols - 1);
-		T  upperLeft = src(row, upperLeftColIdx);
-		T		  up = src(row, minCol);
-		T upperRight = src(row, upperRightColIdx);
-		T	  minVal = MIN(up, MIN(upperLeft, upperRight));
-		if (minVal != up) {
-			if (minVal == upperLeft) {
-				minCol = upperLeftColIdx;
-			}
-			else {
-				minCol = upperRightColIdx;
-			}
-		}
-		
-		seam[row] = minCol;
-	}
 }

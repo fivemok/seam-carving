@@ -65,7 +65,8 @@ cv::Mat cutSeams(cv::Mat h_image, int numSeams, Orientation o)
 
 	int newRows = d_image.rows;
 	int newCols = d_image.cols;
-	int& newDim = isHorizontal ? newCols : newRows;
+	int& newDim = isHorizontal ? newRows : newCols;
+	int& cutSeamTs = isHorizontal ? newCols : newRows;
 
 	for (int i = 0; i < numSeams; i++) {
 		computeGradient(gauss, sobelX, sobelY, d_image, d_grayscale, d_gradX, d_gradY);
@@ -79,21 +80,15 @@ cv::Mat cutSeams(cv::Mat h_image, int numSeams, Orientation o)
 		computeGrad<T><<<blocks,TPB>>>(d_gradY, d_gradX, d_grad);
 		computeEnergyMap<T>(d_gradPtr, d_energyPtr, isHorizontal);
 
-		if (isHorizontal) {
-			findSeamH<T><<<1,1>>>(d_energyPtr, seam);
-			newRows -= 1;
-		}
-		else {
-			findSeamV<T><<<1,1>>>(d_energyPtr, seam);
-			newCols -= 1;
-		}
+		findSeam<<<1,1>>>(d_energyPtr, seam, o);
+		newDim--;
 
 		cv::cuda::GpuMat d_imageTemp(newRows, newCols, d_image.type());
 		cv::cuda::PtrStepSz<uchar3> d_imagePtr(d_image.rows, d_image.cols, d_image.ptr<uchar3>(), d_image.step);
 		cv::cuda::PtrStepSz<uchar3> d_imageTempPtr(newRows, newCols, d_imageTemp.ptr<uchar3>(), d_imageTemp.step);
 	
 		{
-			int blocks = ceil(((double)newDim)/TPB);
+			int blocks = ceil(((double)cutSeamTs)/TPB);
 			cutSeam<<<blocks,TPB>>>(d_imagePtr, d_imageTempPtr, seam, o);
 		}
 
