@@ -24,7 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="main.cu" />
-    <CudaCompile Include="seam_kernels.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CA001F18-B11F-42F7-9921-240ACC8279ED}</ProjectGuid>
