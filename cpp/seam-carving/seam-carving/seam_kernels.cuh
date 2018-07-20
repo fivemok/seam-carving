@@ -39,14 +39,14 @@ void cutSeam(const cv::cuda::PtrStepSz<uchar3> src,
 }
 
 template <typename T> __global__
-void computeGrad(const cv::cuda::PtrStepSz<T> gradX,
-	const cv::cuda::PtrStepSz<T> gradY, cv::cuda::PtrStepSz<T> energy)
+void computeEnergy(const cv::cuda::PtrStepSz<T> gradY,
+	const cv::cuda::PtrStepSz<T> gradX, cv::cuda::PtrStepSz<T> energy)
 {
 	int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if (tid < energy.rows) {
 		for (int col = 0; col < energy.cols; col++) {
-			T val = sqrt(pow(gradX(tid, col), 2) + pow(gradY(tid, col), 2));
+			T val = sqrt(pow(gradY(tid, col), 2) + pow(gradX(tid, col), 2));
 			energy(tid, col) = val;
 		}
 	}
