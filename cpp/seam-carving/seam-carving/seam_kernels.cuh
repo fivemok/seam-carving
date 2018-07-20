@@ -44,11 +44,14 @@ void computeEnergy(const cv::cuda::PtrStepSz<T> gradY,
 	const cv::cuda::PtrStepSz<T> gradX, cv::cuda::PtrStepSz<T> energy)
 {
 	int tid = blockDim.x * blockIdx.x + threadIdx.x;
+	int tLimit = energy.rows * energy.cols;
 
-	if (tid < energy.rows) {
-		for (int col = 0; col < energy.cols; col++) {
-			T val = sqrt(pow(gradY(tid, col), 2) + pow(gradX(tid, col), 2));
-			energy(tid, col) = val;
+	if (tid < tLimit) {
+		for (int i = tid; i < tLimit; i += gridDim.x * blockDim.x) {
+			int y = i / energy.cols;
+			int x = i - y * energy.cols;
+			T val = sqrt(pow(gradY(y, x), 2) + pow(gradX(y, x), 2));
+			energy(y, x) = val;
 		}
 	}
 }
