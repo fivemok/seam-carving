@@ -5,10 +5,38 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/cuda.hpp>
 
-#define MAX_THRDS 256
-
+#define TPB 256
 
 enum Orientation { HORIZONTAL, VERTICAL };
+
+__global__
+void cutSeam(const cv::cuda::PtrStepSz<uchar3> src,
+	cv::cuda::PtrStepSz<uchar3> dst, int *seam, Orientation o)
+{
+	bool isHorizontal = (o == HORIZONTAL);
+	int tid = blockDim.x * blockIdx.x + threadIdx.x;
+	int tLimit = isHorizontal ? dst.cols : dst.rows;
+
+	if (tid < tLimit) {
+		int dim = isHorizontal ? dst.rows : dst.cols;
+		int offset = 0;
+		int seamLoc = seam[tid];
+
+		for (int rc = 0; rc < dim; rc++) {
+			if (rc == seamLoc) {
+				offset = 1;
+			}
+
+			if (isHorizontal) {
+				dst(rc, tid) = src(rc + offset, tid);
+			}
+			else {
+				dst(tid, rc) = src(tid, rc + offset);
+			}
+		}
+
+	}
+}
 
 template <typename T> __global__
 void computeGrad(const cv::cuda::PtrStepSz<T> gradX,
@@ -159,10 +187,3 @@ void findSeamV(const cv::cuda::PtrStepSz<T> src, int *seam)
 		seam[row] = minCol;
 	}
 }
-
-__global__
-void cutSeamH(const cv::cuda::PtrStepSz<uchar3> src,
-	cv::cuda::PtrStepSz<uchar3> dst, int *seam);
-__global__
-void cutSeamV(const cv::cuda::PtrStepSz<uchar3> src,
-	cv::cuda::PtrStepSz<uchar3> dst, int *seam);

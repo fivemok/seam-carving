@@ -31,14 +31,14 @@ static inline void computeEnergyMap(const cv::cuda::PtrStepSz<T> d_grad,
 {
 	int dim = isHorizontal ? d_grad.cols : d_grad.rows;
 	int numThreads = isHorizontal ? d_grad.rows : d_grad.cols;
-	int blocks = ceil(((double)numThreads)/MAX_THRDS);
+	int blocks = ceil(((double)numThreads)/TPB);
 
 	for (int i = 0; i < dim; i++) {
 		if (isHorizontal) {
-			computeEnergyMapH<T><<<blocks,MAX_THRDS>>>(d_grad, d_energy, i);
+			computeEnergyMapH<T><<<blocks,TPB>>>(d_grad, d_energy, i);
 		}
 		else {
-			computeEnergyMapV<T><<<blocks,MAX_THRDS>>>(d_grad, d_energy, i);
+			computeEnergyMapV<T><<<blocks,TPB>>>(d_grad, d_energy, i);
 		}
 	}
 }
@@ -65,6 +65,7 @@ cv::Mat cutSeams(cv::Mat h_image, int numSeams, Orientation o)
 
 	int newRows = d_image.rows;
 	int newCols = d_image.cols;
+	int& newDim = isHorizontal ? newCols : newRows;
 
 	for (int i = 0; i < numSeams; i++) {
 		computeGradient(gauss, sobelX, sobelY, d_image, d_grayscale, d_gradX, d_gradY);
@@ -74,8 +75,8 @@ cv::Mat cutSeams(cv::Mat h_image, int numSeams, Orientation o)
 		cv::cuda::PtrStepSz<T> d_gradXPtr(d_gradX.rows, d_gradX.cols, d_gradX.ptr<T>(), d_gradX.step);
 		cv::cuda::PtrStepSz<T> d_gradPtr(d_grad.rows, d_grad.cols, d_grad.ptr<T>(), d_grad.step);
 		cv::cuda::PtrStepSz<T> d_energyPtr(d_energy.rows, d_energy.cols, d_energy.ptr<T>(), d_energy.step);
-		int blocks = ceil(((double)newRows)/MAX_THRDS);
-		computeGrad<T><<<blocks,MAX_THRDS>>>(d_gradY, d_gradX, d_grad);
+		int blocks = ceil(((double)newRows)/TPB);
+		computeGrad<T><<<blocks,TPB>>>(d_gradY, d_gradX, d_grad);
 		computeEnergyMap<T>(d_gradPtr, d_energyPtr, isHorizontal);
 
 		if (isHorizontal) {
@@ -90,14 +91,10 @@ cv::Mat cutSeams(cv::Mat h_image, int numSeams, Orientation o)
 		cv::cuda::GpuMat d_imageTemp(newRows, newCols, d_image.type());
 		cv::cuda::PtrStepSz<uchar3> d_imagePtr(d_image.rows, d_image.cols, d_image.ptr<uchar3>(), d_image.step);
 		cv::cuda::PtrStepSz<uchar3> d_imageTempPtr(newRows, newCols, d_imageTemp.ptr<uchar3>(), d_imageTemp.step);
-		
-		if (isHorizontal) {
-			int blocks = ceil(((double)newCols)/MAX_THRDS);
-			cutSeamH<<<blocks,MAX_THRDS>>>(d_imagePtr, d_imageTempPtr, seam);
-		}
-		else {
-			int blocks = ceil(((double)newRows)/MAX_THRDS);
-			cutSeamV<<<blocks,MAX_THRDS>>>(d_imagePtr, d_imageTempPtr, seam);
+	
+		{
+			int blocks = ceil(((double)newDim)/TPB);
+			cutSeam<<<blocks,TPB>>>(d_imagePtr, d_imageTempPtr, seam, o);
 		}
 
 		d_image = cv::cuda::GpuMat(d_imageTemp);
